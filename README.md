@@ -1,0 +1,1 @@
+# litserve-embedding-api
