@@ -1,0 +1,4 @@
+litserve==0.1.2
+openai==1.35.1
+torch
+transformers
