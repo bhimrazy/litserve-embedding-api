@@ -2,8 +2,8 @@
 import logging
 from typing import List, Literal, Union
 
-import torch
 import litserve as ls
+import torch
 from pydantic import BaseModel
 from transformers import AutoModel, AutoTokenizer
 
