@@ -1,5 +1,6 @@
 from litserve.specs.base import LitSpec
-from fastapi import BackgroundTasks, HTTPException, Request, Response
+from fastapi import Request, Response
+
 
 # TODO: Implement the OpenAIEmbeddingSpec class
 class OpenAIEmbeddingSpec(LitSpec):
