@@ -7,9 +7,6 @@ import litserve as ls
 from pydantic import BaseModel
 from transformers import AutoModel, AutoTokenizer
 
-# Define allowed embedding models
-EMBEDDING_MODELS = Literal["jina-embeddings-v2-small-en", "jina-embeddings-v2-base-en"]
-
 MODEL_MAPPING = {
     "jina-embeddings-v2-small-en": "jinaai/jina-embeddings-v2-small-en",  # seq len = 8192, dim = 768
     "jina-embeddings-v2-base-en": "jinaai/jina-embeddings-v2-base-en",  # seq len = 8192, dim = 768
@@ -18,6 +15,9 @@ MODEL_MAPPING = {
     "bge-base-en-v1.5": "BAAI/bge-base-en-v1.5",  # seq len = 512, dim = 768
     "nomic-embed-text-v1": "nomic-ai/nomic-embed-text-v1",  # seq len = 8192, dim = 768
 }
+
+# Define allowed embedding models using Literal and dictionary keys
+EMBEDDING_MODELS = Literal[tuple(MODEL_MAPPING.keys())]
 
 
 # Request model for embedding
@@ -57,10 +57,8 @@ class OpeanAIEmbeddingAPI(ls.LitAPI):
         logging.info(f"Loading model: {model_id}")
         self.model_id = model_id
         self.model_name = MODEL_MAPPING[model_id]
-        self.model = AutoModel.from_pretrained(
-            self.model_name, trust_remote_code=True
-        ).to(device)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name).to(device)
+        self.model = AutoModel.from_pretrained(self.model_name, trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
 
     def decode_request(self, request: EmbeddingRequest, context) -> List[str]:
         """Decode the incoming request and prepare it for prediction."""
