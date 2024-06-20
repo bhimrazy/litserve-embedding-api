@@ -1,27 +1,92 @@
 # server.py
+import logging
+from typing import List, Literal, Union
+
 import litserve as ls
+from pydantic import BaseModel
+from transformers import AutoModel, AutoTokenizer
 
-# STEP 1: DEFINE YOUR MODEL API
-class SimpleLitAPI(ls.LitAPI):
-    def setup(self, device):
-        # Setup the model so it can be called in `predict`.
-        self.model = lambda x: x**2
+# Define allowed embedding models
+EMBEDDING_MODELS = Literal["jina-embeddings-v2-small-en", "jina-embeddings-v2-base-en"]
 
-    def decode_request(self, request):
-        # Convert the request payload to your model input.
-        return request["input"]
-
-    def predict(self, x):
-        # Run the model on the input and return the output.
-        return self.model(x)
-
-    def encode_response(self, output):
-        # Convert the model output to a response payload.
-        return {"output": output}
+MODEL_MAPPING = {
+    "jina-embeddings-v2-small-en": "jinaai/jina-embeddings-v2-small-en",
+    "jina-embeddings-v2-base-en": "jinaai/jina-embeddings-v2-base-en",
+}
 
 
-# STEP 2: START THE SERVER
+# Request model for embedding
+class EmbeddingRequest(BaseModel):
+    input: Union[str, List[str]]  # Input text or list of texts to be embedded
+    model: EMBEDDING_MODELS  # Model to use for embedding
+    encoding_format: Literal["float"]  # Format of the embedding
+
+
+# Model to represent a single embedding
+class Embedding(BaseModel):
+    embedding: List[float]  # Embedding vector
+    index: int  # Index of the embedding in the input list
+    object: Literal["embedding"] = "embedding"  # Type of object
+
+
+# Model to represent usage statistics
+class Usage(BaseModel):
+    prompt_tokens: int  # Number of tokens in the prompt
+    total_tokens: int  # Total number of tokens processed
+
+
+# Response model for embedding request
+class EmbeddingResponse(BaseModel):
+    data: List[Embedding]  # List of embeddings
+    model: EMBEDDING_MODELS  # Model used for generating embeddings
+    object: Literal["list"] = "list"  # Type of object
+    usage: Usage  # Usage statistics
+
+
+class OpeanAIEmbeddingAPI(ls.LitAPI):
+    def setup(self, device, model_id="jina-embeddings-v2-small-en"):
+        """Setup the model and tokenizer."""
+        logging.info(f"Loading model: {model_id}")
+        self.model_id = model_id
+        self.model_name = MODEL_MAPPING[model_id]
+        self.model = AutoModel.from_pretrained(self.model_name, trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+
+    def decode_request(self, request: EmbeddingRequest, context) -> List[str]:
+        """Decode the incoming request and prepare it for prediction."""
+        context["model"] = request.model
+
+        # load model if different from the active model
+        if request.model != self.model_id:
+            self.setup(self.device, request.model)
+
+        sentences = [request.input] if isinstance(request.input, str) else request.input
+        context["total_tokens"] = sum(
+            len(self.tokenizer.encode(text)) for text in sentences
+        )
+        return sentences
+
+    def predict(self, x) -> List[List[float]]:
+        return self.model.encode(x)
+
+    def encode_response(self, output, context) -> EmbeddingResponse:
+        """Encode the embedding output into the response model."""
+        embeddings = [
+            Embedding(embedding=embedding, index=i)
+            for i, embedding in enumerate(output)
+        ]
+        return EmbeddingResponse(
+            data=embeddings,
+            model=context["model"],
+            usage=Usage(
+                prompt_tokens=context["total_tokens"],
+                total_tokens=context["total_tokens"],
+            ),
+        )
+
+
 if __name__ == "__main__":
-    api = SimpleLitAPI()
-    server = ls.LitServer(api, accelerator="auto")
+    # TODO: Convert the API to OpenAIEmbedding Spec
+    api = OpeanAIEmbeddingAPI()
+    server = ls.LitServer(api, accelerator="auto", api_path="/v1/embeddings")
     server.run(port=8000)
