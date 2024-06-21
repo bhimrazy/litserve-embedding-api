@@ -51,7 +51,7 @@ class EmbeddingResponse(BaseModel):
 BERT_CLASSES = ["NomicBertModel", "BertModel"]
 
 
-class OpeanAIEmbeddingAPI(ls.LitAPI):
+class EmbeddingAPI(ls.LitAPI):
     def setup(self, device, model_id="jina-embeddings-v2-small-en"):
         """Setup the model and tokenizer."""
         logging.info(f"Loading model: {model_id}")
@@ -117,6 +117,6 @@ class OpeanAIEmbeddingAPI(ls.LitAPI):
 
 if __name__ == "__main__":
     # TODO: Convert the API to OpenAIEmbedding Spec
-    api = OpeanAIEmbeddingAPI()
+    api = EmbeddingAPI()
     server = ls.LitServer(api, accelerator="auto", api_path="/v1/embeddings")
     server.run(port=8000)
