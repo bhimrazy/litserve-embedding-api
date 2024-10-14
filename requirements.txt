@@ -1,5 +1,4 @@
-einops==0.8.0
-litserve==0.1.2
-openai==1.35.1
-torch
-transformers
+litserve
+openai
+fastembed 
+# fastembed-gpu # Uncomment this line to use the GPU version of fastembed
